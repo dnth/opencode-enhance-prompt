@@ -4,7 +4,15 @@
   "description": "OpenCode TUI plugin that rewrites the current prompt with OpenAI before you submit it.",
   "type": "module",
   "main": "index.js",
-  "exports": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./tui": {
+      "import": "./index.js",
+      "config": {
+        "label": "Enhance Prompt"
+      }
+    }
+  },
   "files": [
     "index.js",
     "README.md",
@@ -34,6 +42,7 @@
   },
   "homepage": "https://github.com/dnth/opencode-enhance-prompt#readme",
   "engines": {
+    "opencode": ">=1.0.0",
     "node": ">=18"
   }
 }
