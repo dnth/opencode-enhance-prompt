@@ -1,0 +1,39 @@
+{
+  "name": "opencode-enhance-prompt",
+  "version": "0.1.0",
+  "description": "OpenCode TUI plugin that rewrites the current prompt with OpenAI before you submit it.",
+  "type": "module",
+  "main": "index.js",
+  "exports": "./index.js",
+  "files": [
+    "index.js",
+    "README.md",
+    "LICENSE",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "examples"
+  ],
+  "scripts": {
+    "check": "node --check index.js"
+  },
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "tui",
+    "prompt",
+    "openai"
+  ],
+  "author": "dnth",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dnth/opencode-enhance-prompt.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dnth/opencode-enhance-prompt/issues"
+  },
+  "homepage": "https://github.com/dnth/opencode-enhance-prompt#readme",
+  "engines": {
+    "node": ">=18"
+  }
+}
