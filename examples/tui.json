@@ -3,10 +3,7 @@
   "plugin": [
     [
       "./plugins/enhance-prompt/index.js",
-      {
-        "apiKeyFile": "~/.config/opencode/secrets/openai-api-key",
-        "model": "gpt-5-nano"
-      }
+      {}
     ]
   ]
 }

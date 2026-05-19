@@ -12,3 +12,4 @@ secrets/
 *.p12
 *.pfx
 .DS_Store
+.omo/

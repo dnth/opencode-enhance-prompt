@@ -1,6 +1,6 @@
 # OpenCode Enhance Prompt
 
-OpenCode TUI plugin that rewrites your current draft prompt with OpenAI before you submit it. Type a rough prompt, press `ctrl+x w`, review the rewritten prompt, then press Enter when you are ready.
+OpenCode TUI plugin that rewrites your current draft prompt with OpenCode's connected providers before you submit it. Type a rough prompt, press `ctrl+x w`, review the rewritten prompt, then press Enter when you are ready.
 
 The plugin changes only the text in the active prompt box. It does not submit the prompt automatically and it does not log prompt contents.
 
@@ -9,15 +9,15 @@ The plugin changes only the text in the active prompt box. It does not submit th
 - Adds an `Enhance prompt` command to the OpenCode command palette.
 - Binds the command to `ctrl+x w` by default.
 - Falls back to `ctrl+x shift+w` if `ctrl+x w` is already bound.
-- Reads the OpenAI API key from `OPENAI_API_KEY` or a local key file.
-- Lets you choose the OpenAI model from `tui.json` or `OPENAI_ENHANCE_MODEL`.
+- Uses the providers and credentials already connected to OpenCode.
+- Lets you choose an optional OpenCode model from `tui.json`.
 - Preserves the original prompt if enhancement fails.
 
 ## Requirements
 
 - OpenCode with TUI plugin support.
 - Node.js 18 or newer.
-- An OpenAI API key with access to the model you configure.
+- At least one provider connected in OpenCode.
 
 ## Installation
 
@@ -33,37 +33,16 @@ Create or update `~/.config/opencode/tui.json`:
 {
   "$schema": "https://opencode.ai/tui.json",
   "plugin": [
-    [
-      "./plugins/enhance-prompt/index.js",
-      {
-        "apiKeyFile": "~/.config/opencode/secrets/openai-api-key",
-        "model": "gpt-5-nano"
-      }
-    ]
+    "./plugins/enhance-prompt/index.js"
   ]
 }
 ```
 
 Restart OpenCode after changing `tui.json`.
 
-## OpenAI API Key
+## Provider setup
 
-The plugin checks credentials in this order:
-
-1. `OPENAI_API_KEY`
-2. `apiKeyFile` from `tui.json`
-3. `~/.config/opencode/secrets/openai-api-key`
-
-Recommended local key-file setup:
-
-```bash
-mkdir -p ~/.config/opencode/secrets
-chmod 700 ~/.config/opencode/secrets
-printf '%s\n' 'replace-with-your-openai-api-key' > ~/.config/opencode/secrets/openai-api-key
-chmod 600 ~/.config/opencode/secrets/openai-api-key
-```
-
-Do not commit this key file. The repository includes only placeholder configuration.
+Connect providers in OpenCode with `/connect` or `opencode providers`. The plugin uses OpenCode's runtime client, so it does not read provider API keys itself.
 
 ## Configuration
 
@@ -71,16 +50,17 @@ Plugin options in `tui.json`:
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `apiKeyFile` | `~/.config/opencode/secrets/openai-api-key` | File containing the OpenAI API key. |
-| `model` | `gpt-5-nano` | OpenAI chat completions model used to rewrite prompts. |
+| `model` | `opencode/deepseek-v4-flash-free` | Optional model in `provider/model` format. A bare model ID is treated as an opencode model. |
+| `providerID` + `modelID` | `opencode` + `deepseek-v4-flash-free` | Alternative way to configure the model. |
+| `agent` | OpenCode default agent | Optional OpenCode agent to use for the temporary enhancement session. |
+
+With zero config, the plugin tries `opencode/deepseek-v4-flash-free` first, then falls back through `opencode/big-pickle`, `opencode/minimax-m2.5-free`, `opencode/nemotron-3-super-free`, and `opencode/qwen3.6-plus-free`.
 
 Environment variables:
 
 | Variable | Description |
 | --- | --- |
-| `OPENAI_API_KEY` | Overrides any key file. |
-| `OPENAI_ENHANCE_MODEL` | Overrides the configured model. |
-| `OPENAI_ENHANCE_MOCK_TEXT` | Test helper that skips OpenAI and writes deterministic text. |
+| `OPENCODE_ENHANCE_MOCK_TEXT` | Test helper that skips the provider call and writes deterministic text. |
 
 ## Usage
 
@@ -90,14 +70,13 @@ Environment variables:
 4. Review or edit the rewritten prompt.
 5. Press Enter to submit it.
 
-If the prompt is empty, the plugin shows `Type a prompt first`. If OpenAI returns an error, the original prompt remains unchanged.
+If the prompt is empty, the plugin shows `Type a prompt first`. If enhancement fails, the original prompt remains unchanged.
 
 ## Security Notes
 
-- Never hard-code API keys in `index.js`, `tui.json`, shell history, or issue reports.
-- Prefer a local key file with `600` permissions or a secret manager that exports `OPENAI_API_KEY` only for the OpenCode process.
-- The plugin sends the draft prompt to OpenAI because that is required for rewriting. Do not use it for prompts containing secrets unless your OpenAI usage policy allows that data to be sent.
-- Prompt contents and OpenAI responses are not written to disk by this plugin.
+- Never hard-code provider API keys in `index.js`, `tui.json`, shell history, or issue reports.
+- The plugin sends the draft prompt to the connected provider selected by OpenCode because that is required for rewriting. Do not use it for prompts containing secrets unless your provider usage policy allows that data to be sent.
+- Prompt contents and provider responses are not written to disk by this plugin, except for OpenCode's normal temporary session handling while the enhancement request is running.
 
 ## Development
 
@@ -107,10 +86,10 @@ Run the syntax check:
 npm run check
 ```
 
-For deterministic local testing without calling OpenAI:
+For deterministic local testing without calling a provider:
 
 ```bash
-OPENAI_ENHANCE_MOCK_TEXT='Rewrite this prompt.' opencode
+OPENCODE_ENHANCE_MOCK_TEXT='Rewrite this prompt.' opencode
 ```
 
 ## License

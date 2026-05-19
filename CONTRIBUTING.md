@@ -15,7 +15,7 @@ To test inside OpenCode, point your `~/.config/opencode/tui.json` plugin entry a
 ## Guidelines
 
 - Keep the plugin small and dependency-free unless a dependency clearly improves user safety or compatibility.
-- Do not add logging for prompt contents, API responses, or API keys.
+- Do not add logging for prompt contents, provider responses, or credentials.
 - Do not commit real API keys, tokens, `.env` files, or local secret files.
 - Preserve the behavior that enhancement rewrites the prompt but never submits it automatically.
 - Include clear reproduction steps for bug reports.

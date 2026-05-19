@@ -6,19 +6,8 @@ Please report suspected security issues privately by opening a GitHub security a
 
 ## Secret Handling
 
-This project must not contain real credentials. Use placeholders in examples and keep local secrets outside the repository, such as:
+This project must not contain real credentials. Keep provider credentials in OpenCode's normal provider/auth configuration, not in this repository or example files.
 
-```text
-~/.config/opencode/secrets/openai-api-key
-```
+## Data Sent to Providers
 
-Recommended permissions:
-
-```bash
-chmod 700 ~/.config/opencode/secrets
-chmod 600 ~/.config/opencode/secrets/openai-api-key
-```
-
-## Data Sent to OpenAI
-
-The plugin sends the current draft prompt to the configured OpenAI model for rewriting. Review your organization policy before using it with sensitive, private, regulated, or proprietary prompt content.
+The plugin sends the current draft prompt to the connected provider selected by OpenCode for rewriting. Review your organization policy before using it with sensitive, private, regulated, or proprietary prompt content.

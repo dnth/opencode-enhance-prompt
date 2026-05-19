@@ -1,7 +1,7 @@
 {
   "name": "opencode-enhance-prompt",
   "version": "0.1.0",
-  "description": "OpenCode TUI plugin that rewrites the current prompt with OpenAI before you submit it.",
+  "description": "OpenCode TUI plugin that rewrites the current prompt with OpenCode's connected providers before you submit it.",
   "type": "module",
   "main": "index.js",
   "exports": {
@@ -29,7 +29,7 @@
     "opencode-plugin",
     "tui",
     "prompt",
-    "openai"
+    "provider"
   ],
   "author": "dnth",
   "license": "MIT",

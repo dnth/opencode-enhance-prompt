@@ -1,9 +1,11 @@
 const PLUGIN_ID = "enhance-prompt"
-const DEFAULT_MODEL = "gpt-5-nano"
 const DEFAULT_BINDING = "<leader>w"
 const FALLBACK_BINDING = "<leader>shift+w"
 const DEFAULT_BINDING_LABEL = "ctrl+x w"
-const DEFAULT_API_KEY_FILE = "~/.config/opencode/secrets/openai-api-key"
+const DEFAULT_PROVIDER_ID = "opencode"
+const DEFAULT_MODEL_ID = "deepseek-v4-flash-free"
+const FALLBACK_MODEL_IDS = ["big-pickle", "minimax-m2.5-free", "nemotron-3-super-free", "qwen3.6-plus-free"]
+const MOCK_TEXT_ENV = "OPENCODE_ENHANCE_MOCK_TEXT"
 const SYSTEM_PROMPT =
   "Rewrite the user's draft prompt for an AI coding agent. Preserve the original meaning exactly. Make it specific, actionable, and concise. Do not answer the prompt. Return only the rewritten prompt."
 
@@ -53,73 +55,115 @@ function pickBinding(api) {
   return DEFAULT_BINDING
 }
 
-function resolveHomePath(path) {
-  if (!path?.startsWith("~/")) return path
-  return `${process.env.HOME}${path.slice(1)}`
-}
+function resolveModel(options) {
+  if (options?.providerID && options?.modelID) return { providerID: options.providerID, modelID: options.modelID }
+  if (!options?.model) return { providerID: DEFAULT_PROVIDER_ID, modelID: DEFAULT_MODEL_ID }
 
-async function readApiKeyFromFile(path) {
-  if (!path) return undefined
-  const { readFile } = await import("node:fs/promises")
-  try {
-    return (await readFile(resolveHomePath(path), "utf8")).trim()
-  } catch (error) {
-    if (error?.code === "ENOENT") return undefined
-    throw new Error("OpenAI API key file could not be read")
+  const separator = options.model.indexOf("/")
+  if (separator === -1) return { providerID: DEFAULT_PROVIDER_ID, modelID: options.model }
+  if (separator === 0 || separator === options.model.length - 1) throw new Error('Set model as "provider/model" or a bare opencode model ID')
+
+  return {
+    providerID: options.model.slice(0, separator),
+    modelID: options.model.slice(separator + 1),
   }
 }
 
-async function getApiKey(options) {
-  return process.env.OPENAI_API_KEY || (await readApiKeyFromFile(options?.apiKeyFile || DEFAULT_API_KEY_FILE))
+function enhancementModels(options) {
+  const configured = options?.providerID || options?.modelID || options?.model
+  if (configured) return [resolveModel(options)]
+
+  return [DEFAULT_MODEL_ID, ...FALLBACK_MODEL_IDS].map((modelID) => ({ providerID: DEFAULT_PROVIDER_ID, modelID }))
 }
 
-async function requestEnhancedPrompt(original, options) {
-  if (process.env.OPENAI_ENHANCE_MOCK_TEXT) return process.env.OPENAI_ENHANCE_MOCK_TEXT
-
-  const apiKey = await getApiKey(options)
-  if (!apiKey) throw new Error("OpenAI API key is missing")
-
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 30_000)
-
+function errorMessage(value) {
+  if (!value) return undefined
+  if (typeof value === "string") return value
+  if (value instanceof Error) return value.message
+  if (typeof value.message === "string") return value.message
+  if (typeof value.error === "string") return value.error
+  if (typeof value.error?.message === "string") return value.error.message
+  if (typeof value.data?.message === "string") return value.data.message
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: process.env.OPENAI_ENHANCE_MODEL || options?.model || DEFAULT_MODEL,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: original },
-        ],
-        temperature: 1,
-        reasoning_effort: "minimal",
-        max_completion_tokens: 2000,
-      }),
-      signal: controller.signal,
-    })
-
-    const data = await response.json()
-    if (!response.ok) {
-      const message = data?.error?.message || `OpenAI request failed with status ${response.status}`
-      throw new Error(message)
-    }
-
-    const enhanced = data?.choices?.[0]?.message?.content?.trim()
-    if (!enhanced) {
-      const reason = data?.choices?.[0]?.finish_reason
-      throw new Error(reason === "length" ? "OpenAI used the output token budget before returning text" : "OpenAI returned an empty prompt")
-    }
-    return enhanced
-  } catch (error) {
-    if (error?.name === "AbortError") throw new Error("OpenAI request timed out")
-    throw error
-  } finally {
-    clearTimeout(timeout)
+    return JSON.stringify(value)
+  } catch {
+    return String(value)
   }
+}
+
+function resultData(result, action) {
+  if (result?.error) throw new Error(errorMessage(result.error) || `${action} failed`)
+  if (!result?.data) throw new Error(`${action} returned no data`)
+  return result.data
+}
+
+function ensureModelAvailable(api, model) {
+  const providers = api.state?.provider
+  if (!Array.isArray(providers) || providers.length === 0) return
+
+  const provider = providers.find((item) => item.id === model.providerID)
+  if (!provider) {
+    throw new Error(`OpenCode provider "${model.providerID}" is not connected. Connect it with /connect or configure a different enhancement model.`)
+  }
+
+  if (provider.models && !provider.models[model.modelID]) {
+    throw new Error(`Model "${model.providerID}/${model.modelID}" is not available in OpenCode. Configure a different enhancement model in tui.json.`)
+  }
+}
+
+function extractEnhancedText(message) {
+  const enhanced = (message?.parts ?? [])
+    .filter((part) => part?.type === "text" && typeof part.text === "string")
+    .map((part) => part.text)
+    .join("\n")
+    .trim()
+
+  if (!enhanced) throw new Error("OpenCode provider returned an empty prompt")
+  return enhanced
+}
+
+async function requestEnhancedPrompt(original, api, options) {
+  if (process.env[MOCK_TEXT_ENV]) return process.env[MOCK_TEXT_ENV]
+  if (!api.client?.session?.create || !api.client?.session?.prompt) throw new Error("OpenCode provider client is unavailable")
+
+  const models = enhancementModels(options)
+  const agent = options?.agent
+  const failures = []
+
+  for (const model of models) {
+    let sessionID
+    try {
+      ensureModelAvailable(api, model)
+
+      const session = resultData(
+        await api.client.session.create({
+          title: "Prompt enhancement",
+          ...(agent ? { agent } : {}),
+          model: { providerID: model.providerID, id: model.modelID },
+        }),
+        "Creating enhancement session",
+      )
+      sessionID = session.id
+
+      const message = resultData(
+        await api.client.session.prompt({
+          sessionID,
+          system: SYSTEM_PROMPT,
+          parts: [{ type: "text", text: original }],
+          ...(agent ? { agent } : {}),
+          model,
+        }),
+        "Prompt enhancement",
+      )
+      return extractEnhancedText(message)
+    } catch (error) {
+      failures.push(`${model.providerID}/${model.modelID}: ${errorMessage(error) || "failed"}`)
+    } finally {
+      if (sessionID && api.client.session.delete) await api.client.session.delete({ sessionID }).catch(() => undefined)
+    }
+  }
+
+  throw new Error(`Prompt enhancement failed for all fallback models. ${failures.join("; ")}`)
 }
 
 function registerPromptSlots(api) {
@@ -176,11 +220,11 @@ function registerEnhanceCommand(api, options) {
 
           enhancing = true
           try {
-            const enhanced = await requestEnhancedPrompt(original, options)
+            const enhanced = await requestEnhancedPrompt(original, api, options)
             ref.set({ input: enhanced.trim(), parts: [] })
             toast(api, "success", "Prompt enhanced")
           } catch (error) {
-            toast(api, "error", error?.message || "Prompt enhancement failed")
+            toast(api, "error", errorMessage(error) || "Prompt enhancement failed")
           } finally {
             enhancing = false
           }
