@@ -1,7 +1,7 @@
 {
   "name": "opencode-enhance-prompt",
   "version": "0.1.0",
-  "description": "OpenCode TUI plugin that rewrites the current prompt with OpenCode's connected providers before you submit it.",
+  "description": "OpenCode TUI plugin that rewrites the current prompt with a direct provider call before you submit it.",
   "type": "module",
   "main": "index.js",
   "exports": {

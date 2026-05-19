@@ -16,9 +16,9 @@
 
 - User config belongs in `~/.config/opencode/tui.json` or `tui.jsonc`, not repo-local `opencode.json`. File-path plugins are resolved relative to the config file that declares them.
 - `index.js` registers `home_prompt` and `session_prompt` slots and tracks prompt refs manually. Be careful around `setPromptRef()` and `getActivePromptRef()`; this is the subtle part of the plugin.
-- Enhancement uses OpenCode's connected providers through `api.client.session.*`; the zero-config default is `opencode/deepseek-v4-flash-free`, with fallback to `opencode/big-pickle`, `opencode/minimax-m2.5-free`, `opencode/nemotron-3-super-free`, then `opencode/qwen3.6-plus-free`.
+- Enhancement uses a direct OpenAI-compatible HTTP call by default (`OPENAI_API_KEY`, optional `OPENAI_BASE_URL`, default `gpt-5-nano`). `mode: "opencode"` uses `api.client.session.*`, but that path runs through OpenCode's normal agent/session machinery and is slower.
 - The default keybind is `<leader>w` (`ctrl+x w` in docs). `pickBinding()` falls back to `<leader>shift+w` if the existing TUI config appears to already use the default binding.
-- `OPENCODE_ENHANCE_MOCK_TEXT` bypasses the connected-provider request and writes the mock text directly into the prompt.
+- `OPENCODE_ENHANCE_MOCK_TEXT` bypasses the provider request and writes the mock text directly into the prompt.
 
 ## Security and behavior constraints
 

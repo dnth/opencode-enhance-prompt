@@ -6,8 +6,8 @@ Please report suspected security issues privately by opening a GitHub security a
 
 ## Secret Handling
 
-This project must not contain real credentials. Keep provider credentials in OpenCode's normal provider/auth configuration, not in this repository or example files.
+This project must not contain real credentials. Keep provider credentials in environment variables or your secret manager, not in this repository or example files.
 
 ## Data Sent to Providers
 
-The plugin sends the current draft prompt to the connected provider selected by OpenCode for rewriting. Review your organization policy before using it with sensitive, private, regulated, or proprietary prompt content.
+The plugin sends the current draft prompt to the configured direct provider for rewriting. If `mode: "opencode"` is enabled, it sends the prompt through OpenCode's session provider path instead. Review your organization policy before using it with sensitive, private, regulated, or proprietary prompt content.
