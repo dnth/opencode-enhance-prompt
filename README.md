@@ -57,10 +57,13 @@ Plugin options in `tui.json`:
 | `directModel` | unset | Direct-mode model override that takes precedence over `model`. |
 | `baseURL` | `https://api.openai.com/v1` | OpenAI-compatible API base URL for direct mode. |
 | `timeout` | `30000` | Request timeout in milliseconds. |
+| `maxTokens` | `800` | Direct-mode completion token cap. |
+| `reasoningEffort` | `low` for GPT-5 models | Direct-mode reasoning effort override. |
+| `verbosity` | `low` for GPT-5 models | Direct-mode verbosity override. |
 | `providerID` + `modelID` | `opencode` + `deepseek-v4-flash-free` | OpenCode-session mode model selection. |
 | `agent` | OpenCode default agent | Optional OpenCode agent for `mode: "opencode"`. |
 
-With zero config, the direct path uses `OPENAI_API_KEY`, `https://api.openai.com/v1`, and `gpt-5-nano`. In `mode: "opencode"`, the plugin tries `opencode/deepseek-v4-flash-free` first, then falls back through `opencode/big-pickle`, `opencode/minimax-m2.5-free`, `opencode/nemotron-3-super-free`, and `opencode/qwen3.6-plus-free`.
+With zero config, the direct path uses `OPENAI_API_KEY`, `https://api.openai.com/v1`, and `gpt-5-nano` with low-latency GPT-5 settings. In `mode: "opencode"`, the plugin tries `opencode/deepseek-v4-flash-free` first, then falls back through `opencode/big-pickle`, `opencode/minimax-m2.5-free`, `opencode/nemotron-3-super-free`, and `opencode/qwen3.6-plus-free`.
 
 Environment variables:
 

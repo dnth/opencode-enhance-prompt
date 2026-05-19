@@ -12,6 +12,9 @@ const OPENAI_API_KEY_ENV = "OPENAI_API_KEY"
 const OPENAI_MODEL_ENV = "OPENAI_ENHANCE_MODEL"
 const OPENAI_BASE_URL_ENV = "OPENAI_BASE_URL"
 const DEFAULT_TIMEOUT_MS = 30_000
+const DEFAULT_MAX_COMPLETION_TOKENS = 800
+const DEFAULT_REASONING_EFFORT = "low"
+const DEFAULT_VERBOSITY = "low"
 const SYSTEM_PROMPT =
   "Rewrite the user's draft prompt for an AI coding agent. Preserve the original meaning exactly. Make it specific, actionable, and concise. Do not answer the prompt. Return only the rewritten prompt."
 
@@ -67,12 +70,22 @@ function resolveMode(options) {
   return options?.mode || (options?.providerID || options?.modelID || options?.model?.includes("/") ? "opencode" : "direct")
 }
 
+function isGPT5Model(model) {
+  return /^gpt-5(?:[.-]|$)/i.test(model)
+}
+
 function resolveDirectOptions(options) {
+  const model = options?.directModel || process.env[OPENAI_MODEL_ENV] || options?.model || DEFAULT_DIRECT_MODEL
+  const lowLatencyDefaults = isGPT5Model(model)
+
   return {
     apiKey: options?.apiKey || process.env[OPENAI_API_KEY_ENV],
     baseURL: (options?.baseURL || process.env[OPENAI_BASE_URL_ENV] || DEFAULT_DIRECT_BASE_URL).replace(/\/+$/, ""),
-    model: options?.directModel || process.env[OPENAI_MODEL_ENV] || options?.model || DEFAULT_DIRECT_MODEL,
+    model,
     timeout: options?.timeout || DEFAULT_TIMEOUT_MS,
+    maxCompletionTokens: options?.maxTokens || DEFAULT_MAX_COMPLETION_TOKENS,
+    reasoningEffort: options?.reasoningEffort ?? (lowLatencyDefaults ? DEFAULT_REASONING_EFFORT : undefined),
+    verbosity: options?.verbosity ?? (lowLatencyDefaults ? DEFAULT_VERBOSITY : undefined),
   }
 }
 
@@ -152,7 +165,7 @@ function withTimeout(promise, milliseconds, label) {
 }
 
 async function requestDirectPrompt(original, options) {
-  const { apiKey, baseURL, model, timeout } = resolveDirectOptions(options)
+  const { apiKey, baseURL, model, timeout, maxCompletionTokens, reasoningEffort, verbosity } = resolveDirectOptions(options)
   if (!apiKey) throw new Error(`Set ${OPENAI_API_KEY_ENV} for direct enhancement, or set plugin option mode to "opencode" to use OpenCode's slower session path.`)
 
   const controller = new AbortController()
@@ -171,7 +184,9 @@ async function requestDirectPrompt(original, options) {
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: original },
         ],
-        max_completion_tokens: options?.maxTokens || 2000,
+        max_completion_tokens: maxCompletionTokens,
+        ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
+        ...(verbosity ? { verbosity } : {}),
       }),
       signal: controller.signal,
     })
