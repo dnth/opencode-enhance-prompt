@@ -55,12 +55,12 @@ function toast(api, variant, message) {
   api.ui.toast({ variant, message, duration: 3000 })
 }
 
+function setPromptInput(ref, input) {
+  ref.set({ input, parts: [] })
+}
+
 function bindingMatches(binding, key) {
-  if (!binding) return false
-  if (binding.key === key) return true
-  if (binding.keys === key) return true
-  if (binding.sequence === key) return true
-  return JSON.stringify(binding).includes(key)
+  return Boolean(binding) && (binding.key === key || binding.keys === key || binding.sequence === key || JSON.stringify(binding).includes(key))
 }
 
 function pickBinding(api) {
@@ -159,12 +159,16 @@ function extractEnhancedText(message) {
   return enhanced
 }
 
-function withTimeout(promise, milliseconds, label) {
+async function withTimeout(promise, milliseconds, label) {
   let timeout
   const timer = new Promise((_, reject) => {
     timeout = setTimeout(() => reject(new Error(`${label} timed out after ${Math.round(milliseconds / 1000)}s`)), milliseconds)
   })
-  return Promise.race([promise, timer]).finally(() => clearTimeout(timeout))
+  try {
+    return await Promise.race([promise, timer])
+  } finally {
+    clearTimeout(timeout)
+  }
 }
 
 async function requestDirectPrompt(original, options, isIteration) {
@@ -325,7 +329,7 @@ function registerEnhanceCommand(api, options) {
             const enhanced = await requestEnhancedPrompt(original, api, options, isIteration)
             enhanceHistory.push({ original, ref })
             if (enhanceHistory.length > MAX_HISTORY) enhanceHistory.shift()
-            ref.set({ input: enhanced.trim(), parts: [] })
+            setPromptInput(ref, enhanced.trim())
             toast(api, "success", "Prompt enhanced")
           } catch (error) {
             toast(api, "error", errorMessage(error) || "Prompt enhancement failed")
@@ -358,7 +362,7 @@ function registerEnhanceCommand(api, options) {
             return
           }
 
-          item.ref.set({ input: item.original, parts: [] })
+          setPromptInput(item.ref, item.original)
           toast(api, "success", "Reverted to original prompt")
         },
       },

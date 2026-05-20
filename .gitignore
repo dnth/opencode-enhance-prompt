@@ -13,3 +13,4 @@ secrets/
 *.pfx
 .DS_Store
 .omo/
+.serena/
