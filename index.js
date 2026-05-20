@@ -2,6 +2,7 @@ const PLUGIN_ID = "enhance-prompt"
 const DEFAULT_BINDING = "<leader>w"
 const FALLBACK_BINDING = "<leader>shift+w"
 const DEFAULT_BINDING_LABEL = "ctrl+x w"
+const DEFAULT_UNDO_BINDING = "<leader>z"
 const DEFAULT_DIRECT_BASE_URL = "https://api.openai.com/v1"
 const DEFAULT_DIRECT_MODEL = "gpt-5-nano"
 const DEFAULT_PROVIDER_ID = "opencode"
@@ -17,6 +18,8 @@ const DEFAULT_REASONING_EFFORT = "low"
 const DEFAULT_VERBOSITY = "low"
 const SYSTEM_PROMPT =
   "Rewrite the user's draft prompt for an AI coding agent. Preserve the original meaning exactly. Make it specific, actionable, and concise. Do not answer the prompt. Return only the rewritten prompt."
+const ITERATION_SYSTEM_PROMPT =
+  `${SYSTEM_PROMPT} This is another enhancement pass on an already rewritten prompt; produce a fresh alternative variation instead of making only minor edits or returning the same wording.`
 
 let activePromptRef
 let enhancing = false
@@ -164,7 +167,7 @@ function withTimeout(promise, milliseconds, label) {
   return Promise.race([promise, timer]).finally(() => clearTimeout(timeout))
 }
 
-async function requestDirectPrompt(original, options) {
+async function requestDirectPrompt(original, options, isIteration) {
   const { apiKey, baseURL, model, timeout, maxCompletionTokens, reasoningEffort, verbosity } = resolveDirectOptions(options)
   if (!apiKey) throw new Error(`Set ${OPENAI_API_KEY_ENV} for direct enhancement, or set plugin option mode to "opencode" to use OpenCode's slower session path.`)
 
@@ -181,7 +184,7 @@ async function requestDirectPrompt(original, options) {
       body: JSON.stringify({
         model,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: isIteration ? ITERATION_SYSTEM_PROMPT : SYSTEM_PROMPT },
           { role: "user", content: original },
         ],
         max_completion_tokens: maxCompletionTokens,
@@ -205,7 +208,7 @@ async function requestDirectPrompt(original, options) {
   }
 }
 
-async function requestOpenCodePrompt(original, api, options) {
+async function requestOpenCodePrompt(original, api, options, isIteration) {
   if (!api.client?.session?.create || !api.client?.session?.prompt) throw new Error("OpenCode provider client is unavailable")
 
   const models = enhancementModels(options)
@@ -236,7 +239,7 @@ async function requestOpenCodePrompt(original, api, options) {
         await withTimeout(
           api.client.session.prompt({
             sessionID,
-            system: SYSTEM_PROMPT,
+            system: isIteration ? ITERATION_SYSTEM_PROMPT : SYSTEM_PROMPT,
             parts: [{ type: "text", text: original }],
             ...(agent ? { agent } : {}),
             model,
@@ -258,9 +261,9 @@ async function requestOpenCodePrompt(original, api, options) {
   throw new Error(`Prompt enhancement failed for all fallback models. ${failures.join("; ")}`)
 }
 
-async function requestEnhancedPrompt(original, api, options) {
+async function requestEnhancedPrompt(original, api, options, isIteration) {
   if (process.env[MOCK_TEXT_ENV]) return process.env[MOCK_TEXT_ENV]
-  return resolveMode(options) === "opencode" ? requestOpenCodePrompt(original, api, options) : requestDirectPrompt(original, options)
+  return resolveMode(options) === "opencode" ? requestOpenCodePrompt(original, api, options, isIteration) : requestDirectPrompt(original, options, isIteration)
 }
 
 function registerPromptSlots(api) {
@@ -317,7 +320,8 @@ function registerEnhanceCommand(api, options) {
 
           enhancing = true
           try {
-            const enhanced = await requestEnhancedPrompt(original, api, options)
+            const isIteration = enhanceHistory.some((item) => item.ref === ref)
+            const enhanced = await requestEnhancedPrompt(original, api, options, isIteration)
             enhanceHistory.push({ original, ref })
             if (enhanceHistory.length > MAX_HISTORY) enhanceHistory.shift()
             ref.set({ input: enhanced.trim(), parts: [] })
@@ -358,7 +362,10 @@ function registerEnhanceCommand(api, options) {
         },
       },
     ],
-    bindings: [{ key, cmd: "prompt.enhance", desc: "Enhance prompt" }],
+    bindings: [
+      { key, cmd: "prompt.enhance", desc: "Enhance prompt" },
+      { key: DEFAULT_UNDO_BINDING, cmd: "prompt.enhance.undo", desc: "Undo prompt enhancement" },
+    ],
   })
 }
 

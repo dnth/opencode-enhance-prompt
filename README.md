@@ -8,9 +8,12 @@ The plugin changes only the text in the active prompt box. It does not submit th
 
 - Adds an `Enhance prompt` command to the OpenCode command palette.
 - Binds the command to `ctrl+x w` by default.
+- Binds undo enhancement to `ctrl+x z` by default.
 - Falls back to `ctrl+x shift+w` if `ctrl+x w` is already bound.
 - Uses a direct OpenAI-compatible API call by default for lower latency.
 - Can still use OpenCode's session provider path with `mode: "opencode"` when you want that integration.
+- Lets you run enhancement repeatedly to produce alternate prompt variations.
+- Lets you undo an enhancement back to the immediately preceding prompt version.
 - Preserves the original prompt if enhancement fails.
 
 ## Requirements
@@ -79,7 +82,7 @@ Environment variables:
 1. Start OpenCode.
 2. Type a draft prompt in the prompt box.
 3. Press `ctrl+x w` or open the command palette with `ctrl+p` and select `Enhance prompt`.
-4. Review or edit the rewritten prompt.
+4. Review or edit the rewritten prompt. Run `Enhance prompt` again if you want another variation, or press `ctrl+x z` to restore the preceding prompt version.
 5. Press Enter to submit it.
 
 If the prompt is empty, the plugin shows `Type a prompt first`. If enhancement fails, the original prompt remains unchanged.
