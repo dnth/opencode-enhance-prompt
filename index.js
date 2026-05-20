@@ -319,6 +319,7 @@ function registerEnhanceCommand(api, options) {
           }
 
           enhancing = true
+          toast(api, "info", "Enhancing prompt...")
           try {
             const isIteration = enhanceHistory.some((item) => item.ref === ref)
             const enhanced = await requestEnhancedPrompt(original, api, options, isIteration)
